@@ -8,16 +8,22 @@ const PORT = process.env.PORT || 3000;
 
 app.post('/', (req, res) => {
   const body = req.body;
-  const intentName = body.queryResult?.intent?.displayName;
+  const intentName = body.queryResult?.intent?.displayName || 'Necunoscut';
   const params = body.queryResult?.parameters || {};
   const session = body.session;
 
-  // --- CALCUL TOTAL PIZZA ---
   if (intentName === 'Calcul - Cantitate') {
+    const pizza = params.pizza_type;
+    const marime = params.marime;
+    const qty = Number(params.qty);
 
-    const pizza = params.pizza_type || 'diavola';
-    const marime = params.marime || 'mare';
-    const qty = Number(params.qty || 1);
+    console.log('PARAMS:', params);
+
+    if (!pizza || !marime || !qty || qty <= 0) {
+      return res.json({
+        fulfillmentText: 'Te rog spune cantitatea (ex: 2), pizza și mărimea.'
+      });
+    }
 
     const preturi = {
       margherita: { mica: 20, medie: 28, mare: 35 },
@@ -29,8 +35,7 @@ app.post('/', (req, res) => {
 
     if (!preturi[pizza] || !preturi[pizza][marime]) {
       return res.json({
-        fulfillmentText:
-          'Nu pot calcula prețul. Spune de exemplu: diavola mare.'
+        fulfillmentText: 'Nu recunosc pizza sau mărimea. Exemplu: diavola mare.'
       });
     }
 
@@ -47,26 +52,21 @@ app.post('/', (req, res) => {
       `💰 Preț unitar: ${pretUnitar} lei\n` +
       `📦 Subtotal: ${subtotal.toFixed(2)} lei\n` +
       `🚚 Transport: ${transport.toFixed(2)} lei\n` +
-      `🏷️ Reducere: ${reducere.toFixed(2)} lei\n` +
-      `👉 TOTAL: ${total.toFixed(2)} lei\n\n` +
-      `Vrei să revii la meniul principal?`;
+      `🏷 Reducere: ${reducere.toFixed(2)} lei\n` +
+      `👉 Total: ${total.toFixed(2)} lei\n\n` +
+      `Dorești să revii la meniul principal sau să oferi feedback?`;
 
     return res.json({
       fulfillmentText: mesaj,
       outputContexts: [
-        {
-          name: `${session}/contexts/secondary-menu`,
-          lifespanCount: 5
-        }
+        { name: `${session}/contexts/secondary-menu`, lifespanCount: 5 }
       ]
     });
   }
 
-  res.json({
-    fulfillmentText: 'Webhook activ, dar intent nerecunoscut.'
-  });
+  res.json({ fulfillmentText: 'Webhook activ, dar intent nerecunoscut.' });
 });
 
-app.listen(PORT, () =>
-  console.log(`Server live pe portul ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`Server live pe portul ${PORT}`);
+});
