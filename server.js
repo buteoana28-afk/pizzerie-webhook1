@@ -8,15 +8,40 @@ const PORT = process.env.PORT || 3000;
 
 app.post('/', (req, res) => {
   const body = req.body;
-  const intentName = body.queryResult ? body.queryResult.intent.displayName : "Necunoscut";
-  const params = body.queryResult ? body.queryResult.parameters : {};
-  const session = body.session;
+
+  const intentName =
+    body.queryResult?.intent?.displayName || "Necunoscut";
+
+  const params =
+    body.queryResult?.parameters || {};
+
+  const session =
+    body.session || "no-session";
+
+  const queryText =
+    body.queryResult?.queryText || "";
+
+  console.log("\n==============================");
+  console.log("🔔 Intent primit:", intentName);
+  console.log("🧾 queryText:", queryText);
+  console.log("📦 params:", JSON.stringify(params, null, 2));
+  console.log("==============================\n");
 
   // --- CALCUL TOTAL PIZZA ---
   if (intentName === 'Calcul - Cantitate') {
-    const pizza = params.pizza_type;   // ex: diavola
-    const marime = params.marime;      // ex: mare
-    const qty = Number(params.qty || 1);
+
+    const pizza = (params.pizza_type || "").toString().toLowerCase();
+    const marime = (params.marime || "").toString().toLowerCase();
+
+    // Cantitatea poate veni sub mai multe nume în Dialogflow
+    const qtyRaw =
+      params.qty ??
+      params.number ??
+      params.quantity ??
+      queryText; // dacă user scrie doar "2", queryText e "2"
+
+    const qtyParsed = parseInt(qtyRaw, 10);
+    const qty = Number.isFinite(qtyParsed) && qtyParsed > 0 ? qtyParsed : 1;
 
     // tabel preturi (lei)
     const preturi = {
@@ -30,18 +55,22 @@ app.post('/', (req, res) => {
     // validare simpla
     if (!preturi[pizza] || !preturi[pizza][marime]) {
       return res.json({
-        fulfillmentText: "Nu am putut calcula prețul (nu recunosc pizza/mărimea). Încearcă: diavola mare."
+        fulfillmentText:
+          "Nu am putut calcula prețul (nu recunosc pizza/mărimea). Încearcă: diavola mare.",
+        outputContexts: [
+          { name: `${session}/contexts/calc-qty`, lifespanCount: 5 }
+        ]
       });
     }
 
     const pretUnitar = preturi[pizza][marime];
     const subtotal = pretUnitar * qty;
 
-    // regula (exemplu): transport 10 lei, gratuit peste 100
-    let transport = subtotal >= 100 ? 0 : 10;
+    // regula: transport 10 lei, gratuit peste 100
+    const transport = subtotal >= 100 ? 0 : 10;
 
-    // regula reducere (exemplu): 10% reducere la 3+ pizza
-    let reducere = qty >= 3 ? subtotal * 0.10 : 0;
+    // regula reducere: 10% reducere la 3+ pizza
+    const reducere = qty >= 3 ? subtotal * 0.10 : 0;
 
     const total = subtotal + transport - reducere;
 
@@ -68,4 +97,6 @@ app.post('/', (req, res) => {
   res.json({ fulfillmentText: 'Webhook activ, dar intent nerecunoscut.' });
 });
 
-app.listen(PORT, () => console.log(`Server live pe portul ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server live pe portul ${PORT}!`);
+});
